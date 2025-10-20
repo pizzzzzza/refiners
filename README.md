@@ -74,6 +74,40 @@ If you're interested in understanding the diversity of use cases for foundation 
 - [Cross Modality Attention Adapter](https://arxiv.org/abs/2307.01124)
 - [UniAdapter](https://arxiv.org/abs/2302.06605)
 
+## Ape Scout（ApeWisdom 选股工具）
+
+本仓库新增了一个名为 **Ape Scout** 的数据采集与报表工具，用于每天从 [ApeWisdom](https://apewisdom.io/) 获取社区热度数据，并结合 [polygon.io](https://polygon.io/) 的行情、市值信息构建多维筛选器和趋势报表，帮助发现潜在的 10 倍股。
+
+### 快速开始
+
+1. 安装依赖：
+
+   ```bash
+   uv pip install -r requirements.lock
+   ```
+
+2. 配置环境变量：
+
+   ```bash
+   export POLYGON_API_KEY="<你的 polygon.io API key>"
+   # 可选：export APEWISDOM_FILTER="all-stocks"
+   # 可选：export APESCOUT_DATABASE_URL="sqlite:///./ape_scout.db"
+   ```
+
+3. 运行采集任务（建议每日定时运行一次）：
+
+   ```bash
+   python -m scripts.ape_scout_ingest --verbose
+   ```
+
+4. 启动可视化界面：
+
+   ```bash
+   python -m scripts.run_ape_scout_app --host 0.0.0.0 --port 8000
+   ```
+
+浏览器访问 `http://127.0.0.1:8000` 即可查看最新的排名、Mentions/Upvotes 趋势、市值和行业过滤器。界面支持分页（10-100 条/页）、多行业筛选、Mentions/Upvotes 区间筛选、最近 N 天趋势折线图以及“每日均有提及”过滤条件，方便寻找潜在的 10 倍股。
+
 ## Credits
 
 We took inspiration from these great projects:

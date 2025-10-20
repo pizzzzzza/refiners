@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ape Scout</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-css-reset/dist/reset.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+    <style>
+      body {
+        padding-bottom: 4rem;
+      }
+      table {
+        width: 100%;
+      }
+      td,
+      th {
+        vertical-align: top;
+        text-align: left;
+      }
+      .trend-chart {
+        width: 220px;
+        height: 80px;
+      }
+      .filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+      .sectors {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+      }
+      .sector-tag {
+        background: #eef2ff;
+        border-radius: 999px;
+        padding: 0.2rem 0.8rem;
+        font-size: 0.8rem;
+      }
+      .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Ape Scout</h1>
+        <p>最后更新日期：{{ latest_date.strftime('%Y-%m-%d') }}。结果总数：{{ total }}。</p>
+      </header>
+      <section>
+        <form method="get">
+          <div class="filters">
+            <label>
+              市值 (最小)
+              <input type="number" name="market_cap_min" value="{{ filters.market_cap_min or '' }}" step="1000000" />
+            </label>
+            <label>
+              市值 (最大)
+              <input type="number" name="market_cap_max" value="{{ filters.market_cap_max or '' }}" step="1000000" />
+            </label>
+            <label>
+              收盘价 (最小)
+              <input type="number" name="close_min" value="{{ filters.close_min or '' }}" step="0.01" />
+            </label>
+            <label>
+              收盘价 (最大)
+              <input type="number" name="close_max" value="{{ filters.close_max or '' }}" step="0.01" />
+            </label>
+            <label>
+              Mentions (最小)
+              <input type="number" name="mentions_min" value="{{ filters.mentions_min or '' }}" />
+            </label>
+            <label>
+              Mentions (最大)
+              <input type="number" name="mentions_max" value="{{ filters.mentions_max or '' }}" />
+            </label>
+            <label>
+              Upvotes (最小)
+              <input type="number" name="upvotes_min" value="{{ filters.upvotes_min or '' }}" />
+            </label>
+            <label>
+              Upvotes (最大)
+              <input type="number" name="upvotes_max" value="{{ filters.upvotes_max or '' }}" />
+            </label>
+            <label>
+              最近天数
+              <input type="number" name="days" min="7" max="180" value="{{ days }}" />
+            </label>
+            <label>
+              页面大小
+              <select name="page_size">
+                {% for size in [10, 25, 50, 100] %}
+                <option value="{{ size }}" {% if size == page_size %}selected{% endif %}>{{ size }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" name="consistent_mentions" value="true" {% if consistent_mentions %}checked{% endif %} />
+              最近{{ days }}天每天都有提及
+            </label>
+          </div>
+          <fieldset>
+            <legend>行业筛选</legend>
+            <div class="sectors">
+              {% for sector in available_sectors %}
+              <label>
+                <input type="checkbox" name="sectors" value="{{ sector }}" {% if sector in sectors %}checked{% endif %} />
+                {{ sector }}
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+          <input type="hidden" name="page" value="1" />
+          <footer>
+            <button type="submit">应用过滤器</button>
+            <a class="secondary" href="/">重置</a>
+          </footer>
+        </form>
+      </section>
+      <section>
+        <table>
+          <thead>
+            <tr>
+              <th>排名</th>
+              <th>公司名</th>
+              <th>股票代码</th>
+              <th>市值</th>
+              <th>收盘价</th>
+              <th>行业</th>
+              <th>Mentions</th>
+              <th>Upvotes</th>
+              <th>最近{{ days }}天趋势</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            {% set stock = item.stock %}
+            {% set metric = item.metric %}
+            <tr>
+              <td>{{ metric.rank or '-' }}</td>
+              <td>{{ stock.name or '-' }}</td>
+              <td>{{ stock.ticker }}</td>
+              <td>{{ '{:,.0f}'.format(metric.market_cap or 0) if metric.market_cap else '-' }}</td>
+              <td>{{ '{:,.2f}'.format(metric.close_price or 0) if metric.close_price else '-' }}</td>
+              <td>
+                {% for sector in item.sectors %}
+                <span class="sector-tag">{{ sector }}</span>
+                {% endfor %}
+              </td>
+              <td>{{ metric.mentions or 0 }}</td>
+              <td>{{ metric.upvotes or 0 }}</td>
+              <td>
+                <canvas class="trend-chart" data-trend='{{ item.trend | tojson }}'></canvas>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="9">没有符合条件的股票，请调整过滤器。</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+      <nav class="pagination">
+        {% if page > 1 %}
+        <a role="button" href="{{ request.url.include_query_params(page=page-1) }}">上一页</a>
+        {% endif %}
+        <span>第 {{ page }} / {{ pages }} 页</span>
+        {% if page < pages %}
+        <a role="button" href="{{ request.url.include_query_params(page=page+1) }}">下一页</a>
+        {% endif %}
+      </nav>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="/static/js/trends.js"></script>
+  </body>
+</html>
